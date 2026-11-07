@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>النظام المالي الشامل - إدارة حسابات العمال والمقاولين</title>
+    <!-- Tailwind CSS للتصميم العصري -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { font-family: Tahoma, sans-serif; }
+        @media print {
+            header, form, button, .modal, input, select, .no-print {
+                display: none !important;
+            }
+            body {
+                background-color: white !important;
+                color: black !important;
+            }
+            .shadow-sm, .border {
+                box-shadow: none !important;
+                border: 1px solid #cbd5e1 !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+        }
+        .print-only { display: none; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen pb-12">
+
+    <!-- رأس الصفحة المطور -->
+    <header class="bg-slate-900 text-white shadow-lg py-4 px-6 mb-6 border-b border-slate-800">
+        <div class="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl bg-blue-600 p-2 rounded-xl">🏗️</span>
+                <div>
+                    <h1 class="text-lg font-bold">النظام المالي المعتمد</h1>
+                    <p class="text-xs text-slate-400">إدارة حسابات العمال والمقاولين بسهولة تامة</p>
+                </div>
+            </div>
+            <div class="flex items-center flex-wrap gap-2">
+                <button onclick="openGlobalSummaryModal()" class="bg-indigo-600 hover:bg-indigo-700 text-xs px-3.5 py-2.5 rounded-lg transition font-bold cursor-pointer flex items-center gap-1.5 shadow-sm">
+                    📊 تقرير شامل للعمال
+                </button>
+                <button onclick="openAddWorkerModal()" class="bg-blue-600 hover:bg-blue-700 text-xs px-3.5 py-2.5 rounded-lg transition font-bold cursor-pointer flex items-center gap-1.5 shadow-sm">
+                    ➕ إضافة عامل جديد
+                </button>
+                <button onclick="settleAndResetPeriod()" class="bg-amber-600 hover:bg-amber-700 text-xs px-3.5 py-2.5 rounded-lg transition font-bold cursor-pointer flex items-center gap-1.5 shadow-sm">
+                    🔄 تصفية وترحيل
+                </button>
+                <button onclick="window.print()" class="bg-emerald-600 hover:bg-emerald-700 text-xs px-3.5 py-2.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 shadow-sm">
+                    🖨️ طباعة
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 space-y-6">
+
+        <!-- لوحة اختيار العامل -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3 w-full md:w-auto">
+                <div class="bg-blue-50 text-blue-600 p-2.5 rounded-xl font-bold text-sm">👤 العامل النشط</div>
+                <select id="workerSelector" onchange="switchWorker(this.value)" class="border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-72 shadow-inner">
+                    <!-- تعبئة بالـ JS -->
+                </select>
+            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                <button onclick="openEditProfileModal()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2.5 rounded-xl border border-slate-300 transition font-medium cursor-pointer">
+                    ⚙️ إعدادات العامل
+                </button>
+                <button onclick="deleteCurrentWorker()" class="text-xs bg-red-50 hover:bg-red-100 text-red-600 px-3.5 py-2.5 rounded-xl border border-red-200 transition font-medium cursor-pointer">
+                    🗑️ حذف العامل
+                </button>
+            </div>
+        </div>
+
+        <!-- ترويسة رسمية تظهر عند الطباعة فقط -->
+        <div class="print-only text-center mb-6 border-b pb-4">
+            <h2 class="text-2xl font-bold text-slate-900">كشف حساب عامل رسمي وترصيد آلي</h2>
+            <p class="text-sm text-slate-600 mt-1">اسم العامل: <span id="printWorkerName"></span> | تاريخ الإصدار: <span id="printDate"></span></p>
+        </div>
+
+        <!-- بطاقة بيانات العامل والأيام الفعلية -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+            <div class="space-y-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs bg-blue-100 text-blue-700 font-bold px-3 py-1 rounded-full" id="workerJobBadge">-</span>
+                    <span class="text-xs bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-full" id="workerTypeDisplay">-</span>
+                </div>
+                <h2 class="text-2xl font-black text-slate-900" id="workerNameDisplay">الرجاء إضافة عامل للبدء</h2>
+                <p class="text-sm text-slate-500">
+                    الأجر الأساسي: <span class="font-bold text-slate-800" id="workerSalaryDisplay">0</span> <span class="currencySymbol">$</span> 
+                    (عن <span class="font-bold text-slate-800" id="workerBaseDaysDisplay">26</span> يوم أساسي)
+                </p>
+            </div>
+            
+            <div class="bg-blue-50/60 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
+                <div>
+                    <label class="block text-xs font-bold text-blue-900 mb-1">عدد أيام العمل الفعلية للفترة</label>
+                    <p class="text-[11px] text-blue-700">تعديل الأيام يقوم بتحديث الاستحقاق فوراً</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="workerDaysInput" min="0" step="0.5" oninput="updateDays(this.value)" class="w-24 border border-blue-300 bg-white rounded-xl px-3 py-2 text-center font-black text-lg text-blue-900 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
+                    <span class="text-sm font-bold text-blue-800">يوم</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- لوحة المؤشرات المالية (KPIs) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <p class="text-xs text-slate-400 font-bold mb-1">الاستحقاق الأساسي</p>
+                <p id="earnedSalary" class="text-xl font-black text-blue-600">0 <span class="currencySymbol">$</span></p>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <p class="text-xs text-slate-400 font-bold mb-1">رصيد سابق مرحل</p>
+                <p id="openingBalanceDisplay" class="text-xl font-black text-slate-700">0 <span class="currencySymbol">$</span></p>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <p class="text-xs text-slate-400 font-bold mb-1">إجمالي السلف والمسحوبات</p>
+                <p id="totalAdvances" class="text-xl font-black text-red-500">0 <span class="currencySymbol">$</span></p>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <p class="text-xs text-slate-400 font-bold mb-1">إجمالي المشقيات والزيادات</p>
+                <p id="totalBonuses" class="text-xl font-black text-emerald-600">0 <span class="currencySymbol">$</span></p>
+            </div>
+            <div class="bg-slate-900 text-white p-4 rounded-2xl shadow-sm flex flex-col justify-between">
+                <p class="text-xs text-slate-300 font-bold">الصافي المتبقي للعامل</p>
+                <p id="netBalance" class="text-2xl font-black text-emerald-400 mt-1">0 <span class="currencySymbol">$</span></p>
+            </div>
+        </div>
+
+        <!-- نموذج إضافة حركة مالية -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 no-print">
+            <h3 class="text-sm font-bold mb-4 text-slate-700 flex items-center gap-2 border-b pb-3">
+                <span class="bg-blue-600 text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-xs">+</span>
+                تسجيل حركة مالية جديدة (سلفة أو مشقيات)
+            </h3>
+            <form id="transactionForm" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">التاريخ</label>
+                    <input type="date" id="transDate" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">نوع الحركة</label>
+                    <select id="transType" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 font-medium">
+                        <option value="advance">سلفة / مسحوب نقدي (-)</option>
+                        <option value="bonus">مشقيات / استحقاق (+)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">طريقة الصرف</label>
+                    <select id="transMethod" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 font-medium">
+                        <option value="cash">💵 نقداً (كاش)</option>
+                        <option value="jeeb">📱 محفظة جيب</option>
+                        <option value="onecash">📱 ون كاش</option>
+                        <option value="floosak">📱 فلوسك</option>
+                        <option value="pending">⏳ معلق</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">المبلغ</label>
+                    <input type="number" id="transAmount" step="0.01" min="0.01" required placeholder="0.00" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">البيان / التفاصيل</label>
+                    <input type="text" id="transNote" placeholder="اكتب ملاحظة مختصرة..." class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
+                </div>
+                <div class="flex items-end">
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-xl text-sm transition cursor-pointer shadow-sm">
+                        إضافة للحساب
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- جدول سجل الحركات -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-5 border-b border-slate-200 flex justify-between items-center flex-wrap gap-2">
+                <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    📋 سجل الحركات والسلف والمشقيات (مرتبة حسب التاريخ)
+                </h3>
+                <div class="flex items-center gap-2 no-print">
+                    <select id="filterType" onchange="renderApp(false)" class="border border-slate-300 rounded-xl px-3 py-1.5 text-xs bg-slate-50 outline-none font-medium">
+                        <option value="all">عرض كافة الحركات</option>
+                        <option value="advance">السلف والمسحوبات فقط</option>
+                        <option value="bonus">المشقيات والإضافات فقط</option>
+                    </select>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-right border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                            <th class="p-3.5">التاريخ</th>
+                            <th class="p-3.5">نوع الحركة</th>
+                            <th class="p-3.5">طريقة الصرف</th>
+                            <th class="p-3.5">البيان / التفاصيل</th>
+                            <th class="p-3.5">المبلغ</th>
+                            <th class="p-3.5 text-center no-print">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsTableBody" class="divide-y divide-slate-100 text-sm">
+                        <!-- تُعبأ تلقائياً -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- النوافذ المنبثقة (Modals) -->
+    <div id="globalSummaryModal" class="fixed inset-0 bg-slate-900/60 hidden flex items-center justify-center p-4 z-50 backdrop-blur-xs">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 border border-slate-100">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-base font-bold text-slate-900">📊 التقرير المالي الشامل لكل العمال</h3>
+                <button onclick="document.getElementById('globalSummaryModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold text-lg bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center">✕</button>
+            </div>
+            <div id="globalSummaryContent" class="space-y-3 text-sm text-slate-700 max-h-96 overflow-y-auto"></div>
+            <div class="flex justify-end pt-2 border-t">
+                <button type="button" onclick="document.getElementById('globalSummaryModal').classList.add('hidden')" class="bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer hover:bg-slate-900">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="addWorkerModal" class="fixed inset-0 bg-slate-900/60 hidden flex items-center justify-center p-4 z-50 backdrop-blur-xs">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-100">
+            <h3 class="text-base font-bold text-slate-900 mb-4 border-b pb-3">➕ إضافة عامل جديد للنظام</h3>
+            <form id="addWorkerForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">اسم العامل الكامل</label>
+                    <input type="text" id="newWorkerName" required placeholder="مثلاً: محمد علي" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">المسمى الوظيفي</label>
+                    <input type="text" id="newWorkerJob" required placeholder="مثلاً: فني / حداد" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">طريقة الأجر</label>
+                        <select id="newWorkerType" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 font-medium">
+                            <option value="monthly">شهري (ثابت)</option>
+                            <option value="daily">يومي</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">العملة</label>
+                        <select id="newWorkerCurrency" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 font-medium">
+                            <option value="$">دولار ($)</option>
+                            <option value="YR">ريال يمني (YR)</option>
+                            <option value="SAR">ريال سعودي (SAR)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">أيام الشهر الأساسية</label>
+                        <input type="number" id="newWorkerBaseDays" value="26" min="1" required class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">الأجر الأساسي</label>
+                        <input type="number" id="newWorkerSalary" step="0.01" min="0" required placeholder="0.00" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 font-bold">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t">
+                    <button type="button" onclick="closeAddWorkerModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold cursor-pointer">إلغاء</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer shadow-sm">حفظ وإضافة</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="editProfileModal" class="fixed inset-0 bg-slate-900/60 hidden flex items-center justify-center p-4 z-50 backdrop-blur-xs">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-100">
+            <h3 class="text-base font-bold text-slate-900 mb-4 border-b pb-3">⚙️ تعديل إعدادات العامل</h3>
+            <form id="profileForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">اسم العامل</label>
+                    <input type="text" id="profileName" required class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">المسمى الوظيفي</label>
+                    <input type="text" id="profileJob" required class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">طريقة الأجر</label>
+                        <select id="profileType" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 font-medium">
+                            <option value="monthly">شهري (ثابت)</option>
+                            <option value="daily">يومي</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">العملة</label>
+                        <select id="profileCurrency" class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 font-medium">
+                            <option value="$">دولار ($)</option>
+                            <option value="YR">ريال يمني (YR)</option>
+                            <option value="SAR">ريال سعودي (SAR)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">أيام الشهر الأساسية</label>
+                        <input type="number" id="profileBaseDays" min="1" required class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">الأجر الأساسي</label>
+                        <input type="number" id="profileSalary" step="0.01" min="0" required class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 font-bold">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">رصيد سابق / مرحل (+ أو -)</label>
+                    <input type="number" id="profileOpeningBalance" step="0.01" required class="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 font-bold">
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t">
+                    <button type="button" onclick="closeEditProfileModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold cursor-pointer">إلغاء</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer shadow-sm">حفظ التعديلات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="receiptModal" class="fixed inset-0 bg-slate-900/60 hidden flex items-center justify-center p-4 z-50 backdrop-blur-xs">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-slate-100">
+            <div class="text-center border-b pb-3">
+                <h3 class="text-lg font-bold text-slate-900">سند قبض / صرف نقدي</h3>
+                <p class="text-xs text-slate-400">النظام المالي المعتمد</p>
+            </div>
+            <div id="receiptContent" class="space-y-2.5 text-sm text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200"></div>
+            <div class="flex justify-end gap-2 pt-2 no-print">
+                <button type="button" onclick="document.getElementById('receiptModal').classList.add('hidden')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-xl text-sm font-bold cursor-pointer">إغلاق</button>
+                <button type="button" onclick="window.print()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer shadow-sm">طباعة السند</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('printDate').innerText = new Date().toLocaleDateString('ar-SA');
+        document.getElementById('transDate').valueAsDate = new Date();
+
+        // قاعدة بيانات فارغة تماماً لكي يبدأ العميل بإضافة عماله بصفحة نظيفة
+        let systemData = JSON.parse(localStorage.getItem('integrated_multi_worker_system')) || {
+            activeWorkerId: null,
+            workers: []
+        };
+
+        const methodLabels = {
+            cash: '💵 نقداً (كاش)',
+            jeeb: '📱 محفظة جيب',
+            onecash: '📱 ون كاش',
+            floosak: '📱 فلوسك',
+            pending: '⏳ معلق'
+        };
+
+        function saveData(keepInputFocus = false) {
+            localStorage.setItem('integrated_multi_worker_system', JSON.stringify(systemData));
+            renderApp(keepInputFocus);
+        }
+
+        function getCurrentWorker() {
+            if (!systemData.workers.length) return null;
+            return systemData.workers.find(w => w.id === systemData.activeWorkerId) || systemData.workers[0];
+        }
+
+        function switchWorker(id) {
+            systemData.activeWorkerId = parseInt(id);
+            saveData(false);
+        }
+
+        function updateDays(val) {
+            let worker = getCurrentWorker();
+            if (!worker) return;
+            worker.days = val === "" ? 0 : parseFloat(val) || 0;
+            localStorage.setItem('integrated_multi_worker_system', JSON.stringify(systemData));
+            updateCalculationsAndKPIs(worker);
+        }
+
+        function openAddWorkerModal() { document.getElementById('addWorkerModal').classList.remove('hidden'); }
+        function closeAddWorkerModal() { document.getElementById('addWorkerModal').classList.add('hidden'); }
+        
+        function openEditProfileModal() {
+            let worker = getCurrentWorker();
+            if (!worker) {
+                alert('الرجاء إضافة عامل أولاً لتعديل بياناته.');
+                openAddWorkerModal();
+                return;
+            }
+            document.getElementById('profileName').value = worker.name;
+            document.getElementById('profileJob').value = worker.job;
+            document.getElementById('profileType').value = worker.type;
+            document.getElementById('profileCurrency').value = worker.currency || '$';
+            document.getElementById('profileBaseDays').value = worker.baseDays || 26;
+            document.getElementById('profileSalary').value = worker.salary;
+            document.getElementById('profileOpeningBalance').value = worker.openingBalance || 0;
+            document.getElementById('editProfileModal').classList.remove('hidden');
+        }
+        function closeEditProfileModal() { document.getElementById('editProfileModal').classList.add('hidden'); }
+
+        document.getElementById('addWorkerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const defaultDays = parseFloat(document.getElementById('newWorkerBaseDays').value) || 26;
+            const newWorker = {
+                id: Date.now(),
+                name: document.getElementById('newWorkerName').value.trim(),
+                job: document.getElementById('newWorkerJob').value.trim(),
+                type: document.getElementById('newWorkerType').value,
+                currency: document.getElementById('newWorkerCurrency').value,
+                baseDays: defaultDays,
+                days: defaultDays,
+                salary: parseFloat(document.getElementById('newWorkerSalary').value) || 0,
+                openingBalance: 0,
+                transactions: []
+            };
+            systemData.workers.push(newWorker);
+            systemData.activeWorkerId = newWorker.id;
+            saveData(false);
+            closeAddWorkerModal();
+            this.reset();
+        });
+
+        document.getElementById('profileForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            let worker = getCurrentWorker();
+            if (!worker) return;
+            worker.name = document.getElementById('profileName').value.trim();
+            worker.job = document.getElementById('profileJob').value.trim();
+            worker.type = document.getElementById('profileType').value;
+            worker.currency = document.getElementById('profileCurrency').value;
+            worker.baseDays = parseFloat(document.getElementById('profileBaseDays').value) || 26;
+            worker.salary = parseFloat(document.getElementById('profileSalary').value) || 0;
+            worker.openingBalance = parseFloat(document.getElementById('profileOpeningBalance').value) || 0;
+            saveData(false);
+            closeEditProfileModal();
+        });
+
+        function deleteCurrentWorker() {
+            let worker = getCurrentWorker();
+            if (!worker) return;
+            if (confirm(`هل أنت متأكد من حذف العامل (${worker.name}) نهائياً مع كافة سجلاته؟`)) {
+                systemData.workers = systemData.workers.filter(w => w.id !== systemData.activeWorkerId);
+                systemData.activeWorkerId = systemData.workers.length ? systemData.workers[0].id : null;
+                saveData(false);
+            }
+        }
+
+        document.getElementById('transactionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            let worker = getCurrentWorker();
+            if (!worker) {
+                alert('الرجاء إضافة واختيار عامل أولاً لتسجيل حركة مالية.');
+                return;
+            }
+            const newTrans = {
+                id: Date.now(),
+                date: document.getElementById('transDate').value,
+                type: document.getElementById('transType').value,
+                method: document.getElementById('transMethod').value,
+                amount: parseFloat(document.getElementById('transAmount').value),
+                note: document.getElementById('transNote').value.trim()
+            };
+            worker.transactions.push(newTrans);
+            worker.transactions.sort((a, b) => new Date(b.date) - new Date(a.date) || b.id - a.id);
+            saveData(false);
+            this.reset();
+            document.getElementById('transDate').valueAsDate = new Date();
+        });
+
+        function deleteTransaction(id) {
+            if (confirm('هل أنت متأكد من حذف هذه الحركة؟')) {
+                let worker = getCurrentWorker();
+                if (!worker) return;
+                worker.transactions = worker.transactions.filter(t => t.id !== id);
+                saveData(false);
+            }
+        }
+
+        function settleAndResetPeriod() {
+            let worker = getCurrentWorker();
+            if (!worker) {
+                alert('لا يوجد عامل محدد للتصفية.');
+                return;
+            }
+            if (confirm(`هل تريد تصفية حساب العامل (${worker.name}) وبدء فترة جديدة؟ سيتم ترحيل الصافي تلقائياً كرصيد جديد.`)) {
+                let earned = worker.type === 'monthly' ? worker.salary * ((worker.days ?? worker.baseDays) / (worker.baseDays || 26)) : worker.salary * (worker.days || 0);
+                let totalAdvances = 0, totalBonuses = 0;
+                worker.transactions.forEach(t => {
+                    if (t.type === 'advance') totalAdvances += t.amount;
+                    if (t.type === 'bonus') totalBonuses += t.amount;
+                });
+                let currentNet = earned + (worker.openingBalance || 0) + totalBonuses - totalAdvances;
+
+                worker.openingBalance = currentNet;
+                worker.transactions = [];
+                worker.days = worker.baseDays || 26;
+                saveData(false);
+                alert('تمت التصفية وترحيل الرصيد بنجاح.');
+            }
+        }
+
+        function openGlobalSummaryModal() {
+            let html = `<div class="space-y-3">`;
+            if (systemData.workers.length === 0) {
+                html += `<p class="text-center text-slate-400 py-4">لا توجد أي بيانات عمال مسجلة في النظام حالياً.</p>`;
+            } else {
+                systemData.workers.forEach(w => {
+                    let earned = w.type === 'monthly' ? w.salary * ((w.days ?? w.baseDays) / (w.baseDays || 26)) : w.salary * (w.days || 0);
+                    let adv = 0, bon = 0;
+                    w.transactions.forEach(t => {
+                        if (t.type === 'advance') adv += t.amount;
+                        if (t.type === 'bonus') bon += t.amount;
+                    });
+                    let net = earned + (w.openingBalance || 0) + bon - adv;
+
+                    html += `
+                        <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-slate-900">${w.name} <span class="text-xs text-slate-500 font-normal">(${w.job})</span></p>
+                                <p class="text-xs text-slate-500 mt-0.5">الراتب: ${w.salary} ${w.currency || '$'} | الأيام الفعلية: ${w.days ?? w.baseDays}</p>
+                            </div>
+                            <div class="text-left">
+                                <p class="text-sm font-black text-emerald-600">${net.toFixed(2)} ${w.currency || '$'}</p>
+                                <p class="text-[10px] text-slate-400 font-bold">الصافي المتبقي</p>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            html += `</div>`;
+            document.getElementById('globalSummaryContent').innerHTML = html;
+            document.getElementById('globalSummaryModal').classList.remove('hidden');
+        }
+
+        function showReceipt(id) {
+            let worker = getCurrentWorker();
+            if (!worker) return;
+            let t = worker.transactions.find(item => item.id === id);
+            if (!t) return;
+
+            let isAdvance = t.type === 'advance';
+            let html = `
+                <p><strong>اسم العامل:</strong> ${worker.name}</p>
+                <p><strong>التاريخ:</strong> ${t.date}</p>
+                <p><strong>نوع السند:</strong> ${isAdvance ? 'سند صرف (سلفة / مسحوب)' : 'سند استحقاق (مشقيات / إضافة)'}</p>
+                <p><strong>المبلغ:</strong> <span class="text-lg font-bold">${t.amount.toFixed(2)} ${worker.currency || '$'}</span></p>
+                <p><strong>طريقة الصرف:</strong> ${methodLabels[t.method] || 'نقداً'}</p>
+                <p><strong>البيان:</strong> ${t.note || 'لا توجد ملاحظات'}</p>
+                <div class="pt-4 flex justify-between text-xs text-slate-500 border-t mt-3">
+                    <span>توقيع المحاسب: ....................</span>
+                    <span>توقيع المستلم: ....................</span>
+                </div>
+            `;
+            document.getElementById('receiptContent').innerHTML = html;
+            document.getElementById('receiptModal').classList.remove('hidden');
+        }
+
+        function updateCalculationsAndKPIs(worker) {
+            const currency = worker ? (worker.currency || '$') : '$';
+            document.querySelectorAll('.currencySymbol').forEach(el => el.innerText = currency);
+
+            if (!worker) {
+                document.getElementById('earnedSalary').innerHTML = `0 <span class="currencySymbol">${currency}</span>`;
+                document.getElementById('openingBalanceDisplay').innerHTML = `0 <span class="currencySymbol">${currency}</span>`;
+                document.getElementById('totalAdvances').innerHTML = `0 <span class="currencySymbol">${currency}</span>`;
+                document.getElementById('totalBonuses').innerHTML = `0 <span class="currencySymbol">${currency}</span>`;
+                document.getElementById('netBalance').innerHTML = `0 <span class="currencySymbol">${currency}</span>`;
+                return;
+            }
+
+            let currentDays = worker.days !== undefined ? worker.days : (worker.baseDays || 26);
+            let earned = worker.type === 'monthly' ? worker.salary * (currentDays / (worker.baseDays || 26)) : worker.salary * currentDays;
+            
+            let totalAdvances = 0, totalBonuses = 0;
+            worker.transactions.forEach(t => {
+                if (t.type === 'advance') totalAdvances += t.amount;
+                if (t.type === 'bonus') totalBonuses += t.amount;
+            });
+            let opening = worker.openingBalance || 0;
+            let net = earned + opening + totalBonuses - totalAdvances;
+
+            document.getElementById('earnedSalary').innerHTML = `${earned.toFixed(2)} <span class="currencySymbol">${currency}</span>`;
+            document.getElementById('openingBalanceDisplay').innerHTML = `${opening.toFixed(2)} <span class="currencySymbol">${currency}</span>`;
+            document.getElementById('totalAdvances').innerHTML = `${totalAdvances.toFixed(2)} <span class="currencySymbol">${currency}</span>`;
+            document.getElementById('totalBonuses').innerHTML = `${totalBonuses.toFixed(2)} <span class="currencySymbol">${currency}</span>`;
+            document.getElementById('netBalance').innerHTML = `${net.toFixed(2)} <span class="currencySymbol">${currency}</span>`;
+        }
+
+        function renderApp(keepInputFocus = false) {
+            const selector = document.getElementById('workerSelector');
+            selector.innerHTML = '';
+            
+            if (systemData.workers.length === 0) {
+                selector.innerHTML = `<option value="">-- لا يوجد عمال، أضف عاملاً جديداً --</option>`;
+                document.getElementById('printWorkerName').innerText = '-';
+                document.getElementById('workerNameDisplay').innerText = 'لا يوجد عمال مسجلون';
+                document.getElementById('workerJobBadge').innerText = '-';
+                document.getElementById('workerTypeDisplay').innerText = '-';
+                document.getElementById('workerSalaryDisplay').innerText = '0';
+                document.getElementById('workerBaseDaysDisplay').innerText = '26';
+                document.getElementById('workerDaysInput').value = '0';
+                updateCalculationsAndKPIs(null);
+                document.getElementById('transactionsTableBody').innerHTML = `<tr><td colspan="6" class="text-center p-8 text-slate-400 font-medium">الرجاء الضغط على زر "إضافة عامل جديد" للبدء.</td></tr>`;
+                return;
+            }
+
+            systemData.workers.forEach(w => {
+                const opt = document.createElement('option');
+                opt.value = w.id;
+                opt.innerText = `${w.name} - (${w.job})`;
+                if (w.id === systemData.activeWorkerId) opt.selected = true;
+                selector.appendChild(opt);
+            });
+
+            let worker = getCurrentWorker();
+            if (!worker) {
+                systemData.activeWorkerId = systemData.workers[0].id;
+                worker = getCurrentWorker();
+            }
+
+            worker.transactions.sort((a, b) => new Date(b.date) - new Date(a.date) || b.id - a.id);
+
+            document.getElementById('printWorkerName').innerText = worker.name;
+            document.getElementById('workerNameDisplay').innerText = worker.name;
+            document.getElementById('workerJobBadge').innerText = worker.job;
+            document.getElementById('workerTypeDisplay').innerText = worker.type === 'monthly' ? '📅 راتب شهري ثابت' : '⏱️ أجر يومي';
+            document.getElementById('workerSalaryDisplay').innerText = worker.salary.toLocaleString();
+            document.getElementById('workerBaseDaysDisplay').innerText = worker.baseDays || 26;
+
+            const daysInput = document.getElementById('workerDaysInput');
+            if (!keepInputFocus || document.activeElement !== daysInput) {
+                daysInput.value = worker.days !== undefined ? worker.days : (worker.baseDays || 26);
+            }
+
+            updateCalculationsAndKPIs(worker);
+
+            const filterType = document.getElementById('filterType').value;
+            const tbody = document.getElementById('transactionsTableBody');
+            tbody.innerHTML = '';
+
+            let filteredTrans = worker.transactions.filter(t => {
+                if (filterType === 'all') return true;
+                return t.type === filterType;
+            });
+
+            if (filteredTrans.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-slate-400 font-medium">لا توجد حركات مالية مسجلة لهذا العامل.</td></tr>`;
+                return;
+            }
+
+            filteredTrans.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                const isAdvance = t.type === 'advance';
+                const typeText = isAdvance ? '<span class="text-red-700 bg-red-50 border border-red-100 px-2.5 py-1 rounded-lg text-xs font-bold">سلفة / مسحوب (-)</span>' : '<span class="text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-lg text-xs font-bold">مشقيات / إضافة (+)</span>';
+                const currency = worker.currency || '$';
+                const amountClass = isAdvance ? 'text-red-600 font-black' : 'text-emerald-600 font-black';
+
+                tr.innerHTML = `
+                    <td class="p-3.5 text-slate-600 text-xs font-bold">${t.date}</td>
+                    <td class="p-3.5">${typeText}</td>
+                    <td class="p-3.5 text-xs text-slate-700 font-bold">${methodLabels[t.method] || 'نقداً'}</td>
+                    <td class="p-3.5 text-slate-700 font-medium">${t.note || '-'}</td>
+                    <td class="p-3.5 ${amountClass}">${(isAdvance ? '-' : '+') + t.amount.toFixed(2) + ' ' + currency}</td>
+                    <td class="p-3.5 text-center no-print space-x-1 space-x-reverse">
+                        <button onclick="showReceipt(${t.id})" class="text-blue-600 hover:text-blue-800 text-xs font-bold px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-lg cursor-pointer transition">إيصال</button>
+                        <button onclick="deleteTransaction(${t.id})" class="text-red-500 hover:text-red-700 text-xs font-bold px-2.5 py-1.5 bg-red-50 hover:bg-red-100 rounded-lg cursor-pointer transition">حذف</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        renderApp(false);
+    </script>
+</body>
+</html>
